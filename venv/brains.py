@@ -2,7 +2,7 @@ import numpy as np
 import time
 import sounddevice as sd
 import asyncio
-from psychopy import parallel
+#from psychopy import parallel
 
 async def async_play_send(s, id, port):
     '''
@@ -12,10 +12,10 @@ async def async_play_send(s, id, port):
     :return: None
     '''
     sd.play(s, 44100)
-    try:
-        port.setData(id+1) # +1 because setData(0) sets all ports to low
-    except:
-        print('Parallel Ports not supported')
+    # try:
+    #     port.setData(id+1) # +1 because `setData(0) sets all ports to low
+    # except:
+    #     print('Parallel Ports not supported')
 
 def gen_order(n_signals, n_positive): # Binomial Case
     '''
@@ -45,7 +45,8 @@ def play(order, interval, s0, s1):
     :return:
     '''
     supported = True
-    port = parallel.ParallelPort(address=0x0378)
+    # port = parallel.ParallelPort(address=0x0378)
+    port = 1
     loop = asyncio.get_event_loop()
     for i in order:
         time.sleep(interval)
@@ -55,9 +56,9 @@ def play(order, interval, s0, s1):
             loop.run_until_complete(async_play_send(s1, 1, port))
         time.sleep(len(s0)/44100)
     time.sleep(interval*5)
-    try:
-        port.setData(0)
-    except: pass
+    # try:
+    #     port.setData(0)
+    # except: pass
 
 def shuffle(array):
     '''
