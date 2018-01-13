@@ -8,7 +8,7 @@ import sys
 '''
 The Constants for generation of sound signals for experiment
 '''
-N_SIGNALS = 4
+N_SIGNALS = 40
 F0 = 310
 F1 = 500
 SAMPLE_LEN = .15
@@ -49,4 +49,4 @@ for index, rep in enumerate(high_low_order):
         total = n_pos
     else:
         total = N_SIGNALS - n_pos
-    print("Your answer is: {} \n{}\{}".format(int(user_count) == total , user_count, total))
+    print("Your answer is: {} \n{}\{}\n".format(int(user_count) == total , user_count, total))
