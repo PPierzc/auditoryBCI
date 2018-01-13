@@ -36,7 +36,7 @@ def gen_sound(f, t):
     '''
     return np.sin(2*np.pi*f*np.arange(0,t,1/44100))
 
-def play(order, interval, s0, s1):
+def play(order, interval, break_time, s0, s1):
     '''
     :param order: order with which the sounds are to be played
     :param interval: the interval between consecutive sounds
@@ -51,11 +51,11 @@ def play(order, interval, s0, s1):
     for i in order:
         time.sleep(interval)
         if i:
-            loop.run_until_complete(async_play_send(s0, 0, port))
+            loop.run_until_complete(async_play_send(s1, 0, port))
         else:
-            loop.run_until_complete(async_play_send(s1, 1, port))
+            loop.run_until_complete(async_play_send(s0, 1, port))
         time.sleep(len(s0)/44100)
-    time.sleep(interval*5)
+    time.sleep(break_time)
     # try:
     #     port.setData(0)
     # except: pass
