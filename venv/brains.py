@@ -2,9 +2,9 @@ import numpy as np
 import time
 import sounddevice as sd
 import asyncio
-#from psychopy import parallel
+from obci.core.messages.types import TagMsg
 
-async def async_play_send(s, id, port):
+async def async_play_send(s, ID, send_function):
     '''
     :param s: sound signal
     :param id: id of the trigger
@@ -12,10 +12,11 @@ async def async_play_send(s, id, port):
     :return: None
     '''
     sd.play(s, 44100)
-    # try:
-    #     port.setData(id+1) # +1 because `setData(0) sets all ports to low
-    # except:
-    #     print('Parallel Ports not supported')
+    t = time.time()
+    length = len(s)/44100
+    send_function(
+                TagMsg(start_timestamp = t, end_timestamp = t + length, name = "sound", channels='-1',
+                       desc={'type': "tone{}".format(ID)}))
 
 def gen_order(n_signals, n_positive): # Binomial Case
     '''
@@ -36,7 +37,7 @@ def gen_sound(f, t):
     '''
     return np.sin(2*np.pi*f*np.arange(0,t,1/44100))
 
-def play(order, interval, break_time, s0, s1):
+def play(order, interval, break_time, s0, s1, send_function):
     '''
     :param order: order with which the sounds are to be played
     :param interval: the interval between consecutive sounds
@@ -44,18 +45,15 @@ def play(order, interval, break_time, s0, s1):
     :param s1: the array of the positive sound
     :return:
     '''
-    supported = True
-    # port = parallel.ParallelPort(address=0x0378)
-    port = 1
     loop = asyncio.get_event_loop()
     for i in order:
-        time.sleep(interval)
+        asyncio.sleep(interval)
         if i:
-            loop.run_until_complete(async_play_send(s1, 0, port))
+            loop.run_until_complete(async_play_send(s1, 1, send_function))
         else:
-            loop.run_until_complete(async_play_send(s0, 1, port))
+            loop.run_until_complete(async_play_send(s0, 0, send_function))
         time.sleep(len(s0)/44100)
-    time.sleep(break_time)
+    asyncio.sleep(break_time)
     # try:
     #     port.setData(0)
     # except: pass
