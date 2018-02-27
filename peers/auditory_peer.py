@@ -1,63 +1,23 @@
-# import asyncio
-# from obci.core.configured_peer import ConfiguredPeer
-# from obci.core.messages.types import TagMsg, SignalMessage
-# import time
-# from obci.core.message_handler_mixin import subscribe_message_handler
-
-# __all__ = ('InterfacePeer',)
-
-# class InterfacePeer(ConfiguredPeer):
-
-#     async def _connections_established(self):
-#         await super()._connections_established()
-#         self.create_task(self.random_tags())
-#         await self.ready()
-
-#     async def _start(self):
-#         await super()._start()
-#         self.create_task(self._run())
-
-#     async def _run(self):
-#         while True:
-#             await asyncio.sleep(5)
-#             self.send_message(TagMsg(start_timestamp=time.time(), end_timestamp=time.time(), name='dzwiek', channels='-1', desc={'type':'ton1'}))
-
-#     @subscribe_message_handler(SignalMessage)
-#     async def handle_sig(self, msg):
-#         print(msg)
-#         print(msg.data.samples)
-
-        
-# -*- coding: utf-8 -*-
-# Copyright (c) 2016-2018 Braintech Sp. z o.o. [Ltd.] <http://www.braintech.pl>
-# All rights reserved.
-
-"""
-Module providing dummy tag sender peer.
-
-Author:
-     Mateusz Kruszyński <mateusz.kruszynski@gmail.com>
-"""
 import asyncio
-import random
 import time
 import numpy as np
+import pyaudio
+import wave
+import sys
+from scipy.io.wavfile import write
 
 from obci.core.configured_peer import ConfiguredPeer
 from obci.utils.message_helpers import send_tag
 from obci.core.messages.types import SignalMessage
 from obci.core.message_handler_mixin import subscribe_message_handler
 
-
-COLORS = ['czerwony', 'zielony', 'niebieski', 'bialy']
-NAMES = ['pozytywny', 'negatywny', 'neutralny']
 __all__ = ('AutoTagGenerator',)
 
 
 N_SIGNALS = 40
 F0 = 310
 F1 = 500
-SAMPLE_LEN = .15
+SAMPLE_LEN = .5
 INTERVAL = 0.85
 N_REPEAT = 30
 BREAK = 5
@@ -81,9 +41,46 @@ def gen_order(n_signals, n_positive): # Binomial Case
     np.random.shuffle(order)
     return order
 
+def save_array_to_file(file_name, data):
+    scaled = np.int16(data/np.max(np.abs(data)) * 32767)
+    write(file_name, 44100, scaled)
+    return file_name
+
+def run_sound(file_path):
+    CHUNK = 128
+
+    wf = wave.open(file_path, 'rb')
+
+    # instantiate PyAudio (1)
+    p = pyaudio.PyAudio()
+
+    # open stream (2)
+    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                    channels=wf.getnchannels(),
+                    rate=wf.getframerate(),
+                    output=True)
+
+    # read data
+    data = wf.readframes(CHUNK)
+
+    # play stream (3)
+    while len(data) > 0:
+        stream.write(data)
+        data = wf.readframes(CHUNK)
+
+    # stop stream (4)
+    stream.stop_stream()
+    stream.close()
+
+    # close PyAudio (5)
+    p.terminate()
 
 S0 = gen_sound(F0,SAMPLE_LEN)
 S1 = gen_sound(F1,SAMPLE_LEN)
+
+S0_path = save_array_to_file('/home/pawel/s0.wav', S0)
+S1_path = save_array_to_file('/home/pawel/s1.wav', S1)
+
 
 high_low_order = gen_order(N_REPEAT, N_REPEAT//2)
 
@@ -99,6 +96,8 @@ class AutoTagGenerator(ConfiguredPeer):
         self.create_task(self._run())
 
     async def _run(self):
+        global S1_path
+        global S0_path
         while True:
 
             for index, rep in enumerate(high_low_order):
@@ -112,12 +111,15 @@ class AutoTagGenerator(ConfiguredPeer):
                                 "FREQ": "HIGH"
                                 }
                                )
+
+                        run_sound(S1_path)
                     else: 
                         await send_tag(self, t, t + SAMPLE_LEN, 'LOW',
                                {
                                 "FREQ": "LOW"
                                 }
                                )
+                        run_sound(S0_path)
                     await asyncio.sleep(INTERVAL + SAMPLE_LEN)
                 await asyncio.sleep(BREAK)
 
