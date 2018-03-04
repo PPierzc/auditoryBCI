@@ -6,10 +6,13 @@ import wave
 import sys
 from scipy.io.wavfile import write
 
+import pygame
+
 from obci.core.configured_peer import ConfiguredPeer
 from obci.utils.message_helpers import send_tag
 from obci.core.messages.types import SignalMessage
 from obci.core.message_handler_mixin import subscribe_message_handler
+from obci.interfaces.bci.p300.sounds import Sound
 
 __all__ = ('AutoTagGenerator',)
 
@@ -17,7 +20,7 @@ __all__ = ('AutoTagGenerator',)
 N_SIGNALS = 40
 F0 = 310
 F1 = 500
-SAMPLE_LEN = .5
+SAMPLE_LEN = .3
 INTERVAL = 0.85
 N_REPEAT = 30
 BREAK = 5
@@ -42,35 +45,46 @@ def gen_order(n_signals, n_positive): # Binomial Case
     return order
 
 def save_array_to_file(file_name, data):
-    scaled = np.int16(data/np.max(np.abs(data)) * 32767)
+    scaled = np.int16(data/np.max(np.abs(data)) * 32768)
     write(file_name, 44100, scaled)
     return file_name
 
 def run_sound(file_path):
-    CHUNK = 128
+    CHUNK = 32768
 
     wf = wave.open(file_path, 'rb')
 
     # instantiate PyAudio (1)
     p = pyaudio.PyAudio()
 
+    def callback(in_data, frame_count, time_info, status):
+        data = wf.readframes(frame_count)
+        return (data. pyaudio.paContinue)
     # open stream (2)
     stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
                     channels=wf.getnchannels(),
-                    rate=wf.getframerate(),
-                    output=True)
+                    rate=44100,
+                    output=True,
+                    frames_per_buffer=CHUNK,
+                    stream_callback = callback,
+                    output_device_index = 0)
 
-    # read data
-    data = wf.readframes(CHUNK)
+    # # read data
+    # data = wf.readframes(CHUNK)
 
-    # play stream (3)
-    while len(data) > 0:
-        stream.write(data)
-        data = wf.readframes(CHUNK)
+    # # play stream (3)
+    # while len(data) > 0:
+    #     stream.write(data)
+    #     data = wf.readframes(CHUNK)
+    stream.start_stream()
+    while stream.is_active():
+        asyncio.sleep(0.1)
 
     # stop stream (4)
     stream.stop_stream()
     stream.close()
+
+    wf.close()
 
     # close PyAudio (5)
     p.terminate()
@@ -81,6 +95,10 @@ S1 = gen_sound(F1,SAMPLE_LEN)
 S0_path = save_array_to_file('/home/pawel/s0.wav', S0)
 S1_path = save_array_to_file('/home/pawel/s1.wav', S1)
 
+pygame.mixer.pre_init(44100, 16, 2, 4096)
+pygame.init()
+S_0 = pygame.mixer.Sound(S0_path)
+S_1 = pygame.mixer.Sound(S1_path)
 
 high_low_order = gen_order(N_REPEAT, N_REPEAT//2)
 
@@ -112,14 +130,14 @@ class AutoTagGenerator(ConfiguredPeer):
                                 }
                                )
 
-                        run_sound(S1_path)
+                        S_1.play()
                     else: 
                         await send_tag(self, t, t + SAMPLE_LEN, 'LOW',
                                {
                                 "FREQ": "LOW"
                                 }
                                )
-                        run_sound(S0_path)
+                        S_0.play()
                     await asyncio.sleep(INTERVAL + SAMPLE_LEN)
                 await asyncio.sleep(BREAK)
 
