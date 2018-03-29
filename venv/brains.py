@@ -4,14 +4,17 @@ import sounddevice as sd
 import asyncio
 #from psychopy import parallel
 
-async def async_play_send(s, id, port):
+async def async_play_send(s, id):
     '''
     :param s: sound signal
     :param id: id of the trigger
     :param port: the port at which the trigger is sent
     :return: None
     '''
+    play_time = time.time()
     sd.play(s, 44100)
+    with open('output/tags.txt', 'a') as f:
+        f.write("{},{}\n".format(play_time, id))
     # try:
     #     port.setData(id+1) # +1 because `setData(0) sets all ports to low
     # except:
@@ -44,16 +47,13 @@ def play(order, interval, break_time, s0, s1):
     :param s1: the array of the positive sound
     :return:
     '''
-    supported = True
-    # port = parallel.ParallelPort(address=0x0378)
-    port = 1
     loop = asyncio.get_event_loop()
     for i in order:
         time.sleep(interval)
         if i:
-            loop.run_until_complete(async_play_send(s1, 0, port))
+            loop.run_until_complete(async_play_send(s1, 1))
         else:
-            loop.run_until_complete(async_play_send(s0, 1, port))
+            loop.run_until_complete(async_play_send(s0, 0))
         time.sleep(len(s0)/44100)
     time.sleep(break_time)
     # try:
