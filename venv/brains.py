@@ -4,7 +4,7 @@ import sounddevice as sd
 import asyncio
 #from psychopy import parallel
 
-async def async_play_send(s, id):
+async def async_play_send(s, id, directory):
     '''
     :param s: sound signal
     :param id: id of the trigger
@@ -13,7 +13,7 @@ async def async_play_send(s, id):
     '''
     play_time = time.time()
     sd.play(s, 44100)
-    with open('output/tags.txt', 'a') as f:
+    with open(directory + '/tags.txt', 'a') as f:
         f.write("{},{}\n".format(play_time, id))
     # try:
     #     port.setData(id+1) # +1 because `setData(0) sets all ports to low
@@ -39,7 +39,7 @@ def gen_sound(f, t):
     '''
     return np.sin(2*np.pi*f*np.arange(0,t,1/44100))
 
-def play(order, interval, break_time, s0, s1):
+def play(order, interval, break_time, s0, s1, s2, directory):
     '''
     :param order: order with which the sounds are to be played
     :param interval: the interval between consecutive sounds
@@ -50,10 +50,12 @@ def play(order, interval, break_time, s0, s1):
     loop = asyncio.get_event_loop()
     for i in order:
         time.sleep(interval)
-        if i:
-            loop.run_until_complete(async_play_send(s1, 1))
+        if i == 1:
+            loop.run_until_complete(async_play_send(s1, 1, directory))
+        elif i == 2:
+            loop.run_until_complete(async_play_send(s2, 2, directory))
         else:
-            loop.run_until_complete(async_play_send(s0, 0))
+            loop.run_until_complete(async_play_send(s0, 0, directory))
         time.sleep(len(s0)/44100)
     time.sleep(break_time)
     # try:
